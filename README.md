@@ -1,133 +1,163 @@
-# Kvasir-Capsule-Object-Detection
+# Kvasir-Capsule Object Detection
 
-<임시>
+[![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![Ultralytics](https://img.shields.io/badge/Ultralytics-YOLO11-111F68)](https://docs.ultralytics.com/)
+[![Status](https://img.shields.io/badge/status-research%20prototype-orange)](#project-status)
 
+캡슐 내시경 영상에서 병변 후보를 탐지하기 위해 YOLO11m을 학습하고,
+영상 프레임에 탐지 결과와 클래스별 개수를 표시하는 연구 프로젝트입니다.
 
-YOLO11 Medical Endoscopy Lesion Detection
+This repository contains a Colab-oriented YOLO11m training notebook and a
+reusable command-line video inference script.
 
+> [!CAUTION]
+> 이 프로젝트는 연구 및 교육 목적입니다. 출력은 의료진의 판독, 임상 진단,
+> 치료 결정을 대신하지 않습니다.
 
+## Project Status
 
+The repository is an experiment record and inference utility, not a packaged
+medical application.
 
-Real-time detection of 6 gastrointestinal lesions using YOLO11 on Kvasir Capsule endoscopy dataset. Achieved mAP50: 0.83 for polyp, ulcer, blood detection.
+| Component | Included | Notes |
+| --- | --- | --- |
+| YOLO11m training notebook | Yes | Colab-oriented; requires a YOLO-format dataset |
+| Video inference CLI | Yes | Overlays detections and per-frame class counts |
+| Dataset and labels | No | Must be obtained and prepared separately |
+| Trained model weights | No | Pass a compatible `.pt` file at runtime |
+| Reproducible benchmark report | No | Validation outputs are not tracked in this repository |
 
-🎯 Features
-✅ 6-class GI lesion detection (Polyp, Ulcer, Blood-Fresh, etc.)
+No performance numbers are claimed here because the repository does not contain
+the evaluation artifacts needed to independently verify them.
 
-✅ YOLO11s/m optimized for medical imaging
+## Workflow
 
-✅ Real-time inference (~45 FPS on L4 GPU)
-
-✅ Pre-trained weights included
-
-✅ Comprehensive training pipeline
-
-📊 Performance
-| Model   | mAP50 | mAP50-95 | Precision | Recall | FPS (L4) |
-| ------- | ----- | -------- | --------- | ------ | -------- |
-| YOLO11s | 0.83  | 0.52     | 0.82      | 0.79   | 45       |
-| YOLO11m | 0.85  | 0.55     | 0.84      | 0.81   | 32       |
-| YOLOv8s | 0.78  | 0.48     | 0.79      | 0.76   | 52       |
-
-🚀 Quick Start
-1. Clone & Install
+```mermaid
+flowchart LR
+    A[Capsule endoscopy images] --> B[YOLO-format annotations]
+    B --> C[YOLO11m training notebook]
+    C --> D[best.pt]
+    D --> E[Video inference CLI]
+    F[Input video] --> E
+    E --> G[Annotated MP4 with class counts]
 ```
-git clone https://github.com/yourusername/kvasir-yolo11.git
-cd kvasir-yolo11
+
+## Repository Layout
+
+```text
+.
+|-- notebooks/
+|   |-- README.md
+|   `-- yolo11m_training.ipynb       # Colab training and validation workflow
+|-- scripts/
+|   `-- video_inference.py           # Reusable video inference CLI
+|-- .gitignore                       # Excludes data, weights, media, and outputs
+|-- CONTRIBUTING.md
+|-- README.md
+`-- requirements.txt
+```
+
+## Quick Start: Video Inference
+
+### 1. Clone and install
+
+```bash
+git clone https://github.com/Luke-Byun/Kvasir-Capsule-Object-Detection.git
+cd Kvasir-Capsule-Object-Detection
+python -m venv .venv
+```
+
+Activate the environment on macOS/Linux:
+
+```bash
+source .venv/bin/activate
+```
+
+Or on Windows PowerShell:
+
+```powershell
+.venv\Scripts\Activate.ps1
+```
+
+Install dependencies:
+
+```bash
+python -m pip install --upgrade pip
 pip install -r requirements.txt
 ```
-3. Download Dataset
+
+### 2. Run inference
+
+Provide your own compatible trained weights and an input video:
+
+```bash
+python scripts/video_inference.py \
+  --model /path/to/best.pt \
+  --input /path/to/input.mp4 \
+  --output outputs/annotated.mp4 \
+  --confidence 0.25
 ```
-# Kvasir Capsule dataset (auto-download)
-python dataset.py --download
-3. Train
-bash
-yolo train data=data.yaml model=yolo11s.pt epochs=100 batch=16 imgsz=640 project=kvasir_capsule name=yolo11s
-```
-4. Inference
-```
-# Single image
-yolo predict model=runs/detect/yolo11s/weights/best.pt source="path/to/endoscopy.jpg"
 
-# Video/Webcam
-yolo predict model=runs/detect/yolo11s/weights/best.pt source=0  # webcam
-```
-📁 Project Structure
-```
-text
-kvasir-yolo11/
-├── dataset/           # Kvasir Capsule dataset
-│   ├── images/
-│   └── labels/
-├── models/
-│   └── yolo11s_best.pt  # Pre-trained weights
-├── runs/detect/       # Training outputs
-├── configs/
-│   └── kvasir.yaml    # Optimal hyperparameters
-├── inference.py       # Real-time demo
-└── requirements.txt
-```
-🏋️ Training Configuration
+Use `--device 0` for the first CUDA GPU or `--device cpu` to explicitly select
+CPU inference. Run `python scripts/video_inference.py --help` for all options.
 
-```
-# configs/kvasir.yaml - Optimized for medical imaging
-nc: 6  # 6 GI lesions
-batch: 16
-epochs: 100
-lr0: 0.001
-dropout: 0.0
-amp: true
-optimizer: AdamW
-Key optimizations learned:
+## Training Notebook
 
-batch=16 + amp=True (stability)
+[`notebooks/yolo11m_training.ipynb`](notebooks/yolo11m_training.ipynb) covers:
 
-lr0=0.001 (convergence speed)
+- CUDA availability checks
+- Ultralytics installation and YOLO11m initialization
+- private dataset download prompting without storing credentials
+- train/validation/test image discovery
+- a 200-epoch training configuration
+- validation, prediction, and result visualization cells
 
-dropout=0.0 (medical data underfitting fix)
-```
-🩺 Clinical Applications
+The notebook expects a YOLO-format dataset containing a `data.yaml` file and
+`train`, `valid`, and `test` image/label splits. See
+[the notebook guide](notebooks/README.md) before running it.
 
-Real-time polyp detection during capsule endoscopy
+## Data and Artifacts
 
-Automated lesion screening - 83% accuracy
+The following are intentionally excluded from Git:
 
-AI-assisted diagnosis for gastroenterologists
+- capsule endoscopy images and labels
+- private dataset download URLs and API keys
+- model weights (`.pt`, `.pth`, `.onnx`, `.engine`)
+- training runs and validation artifacts
+- input and output videos
 
-Telemedicine integration for remote diagnosis
+Users are responsible for following the dataset's license, access terms, and
+applicable research-data policies. Never open an issue or pull request containing
+patient data, credentials, or private download links.
 
-📈 Results Visualization
+## Reproducing Results
 
-<img width="640" height="640" alt="image" src="https://github.com/user-attachments/assets/b00c32c3-e2f1-4877-bba3-de588a5d1ee9" />
+For a result to be independently reproducible, record at least:
 
-🛠️ Development
-bash
-# Activate environment
-conda create -n kvasir-yolo python=3.10
-conda activate kvasir-yolo
+- dataset source, version, class names, and split definition
+- annotation format and any preprocessing or augmentation
+- package versions and hardware
+- training seed and complete hyperparameters
+- checkpoint selection rule
+- per-class precision, recall, AP50, and AP50-95 on a held-out test split
 
-# Install in dev mode
-pip install -e .
+The current notebook records many training settings, but the dataset manifest,
+trained checkpoint, and exported validation metrics are not included.
 
-# Run tests
-pytest tests/
-🤝 Contributing
-Fork the repository
+## Limitations
 
-Create feature branch (git checkout -b feature/lesion-class)
+- The training workflow contains Colab-specific paths and shell commands.
+- Detection quality cannot be assessed from this repository alone.
+- Per-frame counts are detections, not unique lesion counts across a video.
+- False positives, missed lesions, and dataset shift are expected.
+- The script does not track objects across frames or produce a clinical report.
 
-Commit changes (git commit -m 'Add new lesion class')
+## Contributing
 
-Push & PR
+Documentation, reproducibility, portability, and evaluation improvements are
+welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) before submitting a pull request.
 
+## License
 
-🙏 Acknowledgments
-Ultralytics YOLO11
-
-Kvasir Capsule Dataset
-
-NVIDIA for L4 GPU compute
-
-📞 Contact
-
-<div align="center"> <img src="https://capsule-endoscopy.png" width="800"> <p><em>Real-time GI lesion detection with YOLO11</em></p> </div> <p align="center"> <a href="https://github.com/yourusername/kvasir-yolo11/issues">🐛 Report Bug</a> - <a href="https://github.com/yourusername/kvasir-yolo11/discussions">💬 Request Feature</a> </p>
-⭐ Star this repo if it helps your medical AI research!
+This repository currently has no license file. Unless the owner adds one,
+copyright law applies and reuse permission is not automatically granted.
